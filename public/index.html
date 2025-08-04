@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARGUS - Global Disaster Watch</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a23; /* Dark navy for professional look */
+      color: #f5f6f5; /* Soft white for readability */
+      font-family: 'Roboto', Arial, sans-serif;
+      overflow: auto;
+    }
+    canvas.starfield {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      opacity: 0.8; /* Slightly dimmed for focus on content */
+    }
+    #globeCanvas {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      width: 1000px;
+      height: 1000px;
+      cursor: grab;
+      transition: transform 0.3s ease;
+    }
+    #globeCanvas:active {
+      cursor: grabbing;
+    }
+    #newsTicker {
+      position: fixed;
+      bottom: 5%;
+      width: 90%;
+      max-width: 1200px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #f5f6f5;
+      padding: 15px;
+      border-radius: 8px;
+      border: 2px solid #0072BC; /* UNOCHA Blue */
+      z-index: 20;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    #newsTicker p {
+      display: inline-block;
+      white-space: nowrap;
+      animation: scroll 180s linear infinite; /* Adjusted for smoother, slightly faster scroll */
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    @keyframes scroll {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+    #metrics {
+      position: fixed;
+      top: 15%;
+      right: 2%;
+      background: rgba(0, 0, 0, 0.85);
+      color: #f5f6f5;
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 20;
+      width: 250px;
+      border: 2px solid #0072BC;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      font-size: 0.9rem;
+    }
+    #metrics h2 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+    }
+    #metrics p {
+      margin: 8px 0;
+    }
+    #promptInput {
+      position: fixed;
+      bottom: 12%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      max-width: 600px;
+      z-index: 20;
+    }
+    #promptInput input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #0072BC;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #1a1a1a;
+      font-size: 1rem;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    #promptInput input:focus {
+      border-color: #00a1d6;
+      box-shadow: 0 0 8px rgba(0, 113, 188, 0.5);
+      outline: none;
+    }
+    #burgerMenu {
+      position: fixed;
+      top: 2%;
+      left: 2%;
+      z-index: 30;
+    }
+    #burgerMenu button {
+      background: #0072BC;
+      color: #f5f6f5;
+      padding: 10px 15px;
+      border: 2px solid #0072BC;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: background-color 0.3s ease;
+    }
+    #burgerMenu button:hover {
+      background: #005a9c;
+    }
+    #disasterMenu {
+      display: none;
+      position: fixed;
+      top: 8%;
+      left: 2%;
+      background: rgba(0, 0, 0, 0.9);
+      padding: 15px;
+      border-radius: 8px;
+      border: 2px solid #0072BC;
+      z-index: 30;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    #disasterMenu label {
+      display: block;
+      margin: 8px 0;
+      font-size: 0.9rem;
+      color: #f5f6f5;
+    }
+    #disasterMenu input[type="checkbox"] {
+      margin-right: 8px;
+      accent-color: #0072BC;
+    }
+    .color-swatch {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-right: 8px;
+      border-radius: 4px;
+      vertical-align: middle;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+    #clock {
+      position: fixed;
+      top: 2%;
+      right: 2%;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 10px 15px;
+      border-radius: 8px;
+      z-index: 20;
+      border: 2px solid #0072BC;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    #footer {
+      position: fixed;
+      bottom: 2%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #f5f6f5;
+      padding: 8px 25px;
+      border-radius: 8px;
+      z-index: 20;
+      border: 2px solid #0072BC;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    #title {
+      color: #0072BC;
+      text-align: center;
+      margin-top: 20px;
+      z-index: 20;
+      position: relative;
+      font-size: 3.5rem;
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+    #disasterDetailBox {
+      display: none;
+      position: fixed;
+      bottom: 18%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: #f5f6f5;
+      padding: 20px 30px;
+      border-radius: 8px;
+      border: 2px solid #0072BC;
+      z-index: 25;
+      text-align: left;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      opacity: 0;
+      transform: translateX(-50%) scale(0.95);
+      max-width: 500px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    #disasterDetailBox.show {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+      display: block;
+    }
+    #disasterDetailBox p {
+      margin: 5px 0;
+      font-size: 0.95rem;
+    }
+    #disasterDetailBox button {
+      background: #0072BC;
+      color: #f5f6f5;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: background-color 0.3s ease;
+    }
+    #disasterDetailBox button:hover {
+      background: #005a9c;
+    }
+  </style>
+</head>
+<body>
+  <canvas class="starfield"></canvas>
+  <h1 id="title">ARGUS - Global Disaster Watch</h1>
+  <div id="clock" class="font-bold"></div>
+  <div id="burgerMenu">
+    <button onclick="toggleMenu()">☰ Menu</button>
+  </div>
+  <div id="disasterMenu"></div>
+  <canvas id="globeCanvas"></canvas>
+  <div id="metrics">
+    <h2 class="font-bold">Global Crisis Metrics</h2>
+    <p id="aiConfidence">Prediction Confidence: N/A</p>
+    <p id="predictedEvents">Predicted Events: N/A</p>
+    <p id="overallSeverity">Overall Severity: N/A</p>
+    <p id="highestSeverity">Highest Severity: N/A</p>
+    <p id="averageSeverity">Average Severity: N/A</p>
+    <p id="totalPeopleInNeed">Total People in Need: N/A</p>
+    <p id="totalDisplacedPeople">Total Displaced People: N/A</p>
+    <p id="totalDeaths">Total Deaths: N/A</p>
+    <p id="activeUsers">Active Users: 5,432</p>
+    <p id="processingSpeed">Processing Speed: 1.2ms</p>
+  </div>
+  <div id="newsTicker">
+    <p id="newsTickerContent">Loading crisis events...</p>
+  </div>
+  <div id="disasterDetailBox">
+    <p id="disasterDetailText"></p>
+    <button onclick="hideDisasterDetail()">Close</button>
+  </div>
+  <div id="promptInput">
+    <input type="text" id="aiPromptInput" placeholder="Ask about global crises...">
+  </div>
+  <div id="footer">Powered by World Disaster Center</div>
+  <script>
+    // --- API Configuration ---
+    const API_FORECAST_URL = "http://localhost:5000/fetch_s3_forecast"; // Updated to use Flask endpoint
+    const API_UPDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes for smoother updates
+
+    // UNOCHA-inspired color mapping
+    const EVENT_TYPE_COLORS = {
+      "Conflict/Civil Unrest": 0x9370DB, // Medium Purple
+      "Natural Disaster": 0x87CEEB,      // Sky Blue
+      "Flood": 0x4682B4,                 // Steel Blue
+      "Storm": 0xADD8E6,                 // Light Blue
+      "Wildfire": 0xFF4500,              // OrangeRed
+      "Earthquake": 0xDC143C,            // Crimson
+      "Volcanic": 0xB22222,              // Firebrick
+      "Tsunami": 0x1E90FF,               // Dodger Blue
+      "Explosion/Terrorism": 0xFFD700,   // Gold
+      "Space Weather": 0x32CD32,         // LimeGreen
+      "Cyber Threat": 0xBA55D3,          // Medium Orchid
+      "Drought": 0x8B4513,               // SaddleBrown
+      "Unknown": 0x808080,               // Gray
+      "Other": 0x696969                  // Dim Gray
+    };
+
+    // Helper function for title casing
+    function toTitleCase(str) {
+      if (!str) return '';
+      return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+    }
+
+    // Starfield Background
+    const starfieldCanvas = document.querySelector('.starfield');
+    const starfieldCtx = starfieldCanvas.getContext('2d');
+    starfieldCanvas.width = window.innerWidth;
+    starfieldCanvas.height = window.innerHeight;
+    function drawStars() {
+      starfieldCtx.clearRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
+      for (let i = 0; i < 300; i++) { // Increased stars for richer effect
+        starfieldCtx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.8 + 0.2})`;
+        starfieldCtx.beginPath();
+        starfieldCtx.arc(Math.random() * starfieldCanvas.width, Math.random() * starfieldCanvas.height, Math.random() * 2.5, 0, Math.PI * 2);
+        starfieldCtx.fill();
+      }
+    }
+    drawStars();
+    window.addEventListener('resize', () => {
+      starfieldCanvas.width = window.innerWidth;
+      starfieldCanvas.height = window.innerHeight;
+      drawStars();
+    });
+
+    // Globe Setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('globeCanvas'), alpha: true, antialias: true });
+    const canvas = document.getElementById('globeCanvas');
+    canvas.width = 1000;
+    canvas.height = 1000;
+    renderer.setSize(1000, 1000);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Optimize for high-DPI
+    const geometry = new THREE.SphereGeometry(1, 128, 128); // Higher resolution for smoother globe
+    let material;
+    try {
+      material = new THREE.MeshPhongMaterial({
+        map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg', () => console.log('Earth texture loaded')),
+        specularMap: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg'),
+        emissiveMap: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_lights_2048.png'),
+        emissiveIntensity: 0.7,
+        shininess: 50
+      });
+    } catch (e) {
+      console.error('Texture loading error:', e);
+      material = new THREE.MeshPhongMaterial({ color: 0x0072BC });
+    }
+    const globe = new THREE.Mesh(geometry, material);
+    scene.add(globe);
+    camera.position.z = 2.3;
+
+    // Lighting for enhanced globe visuals
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sunLight.position.set(5, 3, 5).normalize();
+    scene.add(sunLight);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    // Disaster Markers
+    const disasterMarkers = {};
+    let allMarkers = [];
+
+    function addDisasterMarkers(apiAlerts) {
+      allMarkers.forEach(marker => globe.remove(marker));
+      for (const type in disasterMarkers) {
+        delete disasterMarkers[type];
+      }
+      allMarkers = [];
+
+      apiAlerts.forEach(alert => {
+        if (!alert.latitude || !alert.longitude || isNaN(alert.latitude) || isNaN(alert.longitude)) {
+          console.warn(`Alert ID ${alert.id} missing valid coordinates (${alert.latitude}, ${alert.longitude}). Skipping.`);
+          return;
+        }
+
+        const phi = (90 - alert.latitude) * Math.PI / 180;
+        const theta = (alert.longitude + 180) * Math.PI / 180;
+        const radius = 1.015;
+        const x = radius * Math.sin(phi) * Math.cos(theta);
+        const y = radius * Math.cos(phi);
+        const z = radius * Math.sin(phi) * Math.sin(theta);
+
+        const eventType = getStandardizedEventType(alert.event_type);
+        const markerColor = EVENT_TYPE_COLORS[eventType] || EVENT_TYPE_COLORS.Unknown;
+        const markerGeo = new THREE.SphereGeometry(0.012, 16, 16);
+        const markerMat = new THREE.MeshStandardMaterial({
+          color: markerColor,
+          emissive: markerColor,
+          emissiveIntensity: 1.0
+        });
+        const marker = new THREE.Mesh(markerGeo, markerMat);
+        marker.position.set(x, y, z);
+        marker.userData = {
+          id: alert.id,
+          type: eventType,
+          location: alert.location_name || 'Unknown Location',
+          severity: alert.severity_level ?? 'N/A',
+          deaths: alert.deaths ?? 0,
+          displaced: alert.displaced_people ?? 0,
+          peopleInNeed: alert.people_in_need ?? 0,
+          startTime: alert.start_time ? new Date(alert.start_time).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A',
+          country: alert.country || 'Unknown',
+          fullAlert: alert
+        };
+
+        if (!disasterMarkers[eventType]) disasterMarkers[eventType] = [];
+        disasterMarkers[eventType].push(marker);
+        allMarkers.push(marker);
+        globe.add(marker);
+      });
+
+      console.log(`Added ${allMarkers.length} markers.`);
+      updateDisasterMenu(Object.keys(EVENT_TYPE_COLORS));
+    }
+
+    function getStandardizedEventType(rawType) {
+      if (!rawType) return "Unknown";
+      const titleCaseType = toTitleCase(String(rawType));
+      if (titleCaseType.includes("Wildfire") || titleCaseType.includes("Wf") || titleCaseType.includes("Fire")) return "Wildfire";
+      if (titleCaseType.includes("Conflict") || titleCaseType.includes("Battles") || titleCaseType.includes("Violence") || titleCaseType.includes("Riots") || titleCaseType.includes("Protests")) return "Conflict/Civil Unrest";
+      if (titleCaseType.includes("Earthquake") || titleCaseType.includes("Eq") || titleCaseType.includes("Volcanic")) return "Earthquake";
+      if (titleCaseType.includes("Flood")) return "Flood";
+      if (titleCaseType.includes("Storm") || titleCaseType.includes("Hurricane") || titleCaseType.includes("Tc") || titleCaseType.includes("Cyclone")) return "Storm";
+      if (titleCaseType.includes("Tsunami")) return "Tsunami";
+      if (titleCaseType.includes("Natural Disaster")) return "Natural Disaster";
+      if (["Cvx", "Ied", "Remote", "Explosion", "Terrorism"].some(keyword => titleCaseType.includes(keyword))) return "Explosion/Terrorism";
+      if (["Geomagnetic", "Sunspot", "Solar"].some(keyword => titleCaseType.includes(keyword))) return "Space Weather";
+      if (titleCaseType.includes("Cyber") || titleCaseType.includes("Malware")) return "Cyber Threat";
+      if (titleCaseType.includes("Drought")) return "Drought";
+      return "Unknown";
+    }
+
+    // Globe Interaction
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let originalGlobeRotationSpeed = 0.004;
+    let currentGlobeRotationSpeed = originalGlobeRotationSpeed;
+
+    function onMarkerClick(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(allMarkers.filter(obj => obj.isMesh && obj.visible));
+      if (intersects.length > 0) {
+        const clickedMarker = intersects[0].object;
+        showDisasterDetail(clickedMarker.userData);
+      } else {
+        hideDisasterDetail();
+      }
+    }
+    canvas.addEventListener('click', onMarkerClick);
+
+    function showDisasterDetail(alertData) {
+      const detailBox = document.getElementById('disasterDetailBox');
+      const detailText = document.getElementById('disasterDetailText');
+      detailText.innerHTML = `
+        <strong>Event ID:</strong> ${alertData.id ?? 'N/A'}<br>
+        <strong>Type:</strong> ${alertData.type}<br>
+        <strong>Location:</strong> ${alertData.location}<br>
+        <strong>Country:</strong> ${alertData.country}<br>
+        <strong>Severity:</strong> ${alertData.severity}<br>
+        <strong>Start Time:</strong> ${alertData.startTime}<br>
+        <strong>People in Need:</strong> ${alertData.peopleInNeed.toLocaleString()}<br>
+        <strong>Displaced:</strong> ${alertData.displaced.toLocaleString()}<br>
+        <strong>Deaths:</strong> ${alertData.deaths.toLocaleString()}
+      `;
+      detailBox.style.display = 'block';
+      setTimeout(() => detailBox.classList.add('show'), 10);
+    }
+
+    function hideDisasterDetail() {
+      const detailBox = document.getElementById('disasterDetailBox');
+      detailBox.classList.remove('show');
+      setTimeout(() => detailBox.style.display = 'none', 400);
+    }
+
+    let isDragging = false;
+    let previousMouseX = 0;
+    let previousMouseY = 0;
+    canvas.addEventListener('mousedown', e => {
+      isDragging = true;
+      previousMouseX = e.clientX;
+      previousMouseY = e.clientY;
+    });
+    canvas.addEventListener('mousemove', e => {
+      if (isDragging) {
+        const deltaX = e.clientX - previousMouseX;
+        const deltaY = e.clientY - previousMouseY;
+        globe.rotation.y += deltaX * 0.004;
+        globe.rotation.x += deltaY * 0.004;
+        globe.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, globe.rotation.x));
+        previousMouseX = e.clientX;
+        previousMouseY = e.clientY;
+      }
+    });
+    canvas.addEventListener('mouseup', () => isDragging = false);
+    canvas.addEventListener('mouseleave', () => isDragging = false);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (!isDragging) {
+        globe.rotation.y += currentGlobeRotationSpeed;
+      }
+      allMarkers.forEach(obj => {
+        if (obj.isMesh && obj.visible) {
+          const scale = 1 + 0.15 * Math.sin(Date.now() * 0.003); // Smoother pulsing
+          obj.scale.set(scale, scale, scale);
+        }
+      });
+      renderer.render(scene, camera);
+    }
+    try {
+      animate();
+    } catch (e) {
+      console.error('Animation error:', e);
+    }
+
+    function toggleMenu() {
+      const menu = document.getElementById('disasterMenu');
+      menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleDisaster(type, forceState = null) {
+      const markers = disasterMarkers[type];
+      const checkbox = document.querySelector(`#disasterMenu input[value="${type}"]`);
+      let isChecked = forceState !== null ? forceState : (checkbox ? checkbox.checked : true);
+      if (checkbox) checkbox.checked = isChecked;
+      if (markers) {
+        markers.forEach(marker => marker.visible = isChecked);
+      }
+    }
+
+    function updateDisasterMenu(eventTypes) {
+      const menuDiv = document.getElementById('disasterMenu');
+      const currentStates = {};
+      menuDiv.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        currentStates[checkbox.value] = checkbox.checked;
+      });
+      menuDiv.innerHTML = '';
+      eventTypes.sort().forEach(type => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'disaster';
+        checkbox.value = type;
+        checkbox.checked = currentStates[type] !== undefined ? currentStates[type] : true;
+        checkbox.onchange = () => toggleDisaster(type);
+        label.appendChild(checkbox);
+        const colorSwatch = document.createElement('span');
+        colorSwatch.className = 'color-swatch';
+        colorSwatch.style.backgroundColor = '#' + (EVENT_TYPE_COLORS[type] || 0x888888).toString(16).padStart(6, '0');
+        label.appendChild(colorSwatch);
+        label.appendChild(document.createTextNode(type));
+        menuDiv.appendChild(label);
+        toggleDisaster(type, checkbox.checked);
+      });
+    }
+
+    // AI Prompt Handling
+    const aiPromptInput = document.getElementById('aiPromptInput');
+    let isAIFeatureActive = false;
+    let originalPlaceholder = "Ask about global crises...";
+
+    function simulateAIResponse(prompt) {
+      let simulatedResponse = "Analyzing global crisis data...";
+      if (prompt.toLowerCase().includes("show floods")) {
+        simulatedResponse = "Highlighting flood events on the globe.";
+        toggleDisaster('Flood', true);
+      } else if (prompt.toLowerCase().includes("rotate to asia")) {
+        simulatedResponse = "Rotating globe to Asia.";
+        currentGlobeRotationSpeed = 0.002;
+        setTimeout(() => currentGlobeRotationSpeed = originalGlobeRotationSpeed, 4000);
+      } else if (prompt.toLowerCase().includes("explain data")) {
+        simulatedResponse = "Displaying global crisis predictions. Click markers for details or filter events via the menu.";
+      }
+
+      aiPromptInput.value = "AI: " + simulatedResponse;
+      aiPromptInput.style.color = '#f5f6f5';
+      aiPromptInput.style.background = '#0072BC';
+      aiPromptInput.readOnly = true;
+      setTimeout(() => {
+        aiPromptInput.value = originalPlaceholder;
+        aiPromptInput.style.color = '#1a1a1a';
+        aiPromptInput.style.background = 'rgba(255, 255, 255, 0.95)';
+        aiPromptInput.readOnly = false;
+        currentGlobeRotationSpeed = originalGlobeRotationSpeed;
+        isAIFeatureActive = false;
+      }, 6000);
+    }
+
+    function handleAIPromptFocus() {
+      if (!isAIFeatureActive) {
+        aiPromptInput.value = "AI Listening...";
+        aiPromptInput.style.color = '#f5f6f5';
+        aiPromptInput.style.background = '#0072BC';
+        currentGlobeRotationSpeed = 0.012;
+        isAIFeatureActive = true;
+      }
+    }
+
+    function handleAIPromptBlur() {
+      if (isAIFeatureActive && aiPromptInput.value === "AI Listening...") {
+        aiPromptInput.value = originalPlaceholder;
+        aiPromptInput.style.color = '#1a1a1a';
+        aiPromptInput.style.background = 'rgba(255, 255, 255, 0.95)';
+        currentGlobeRotationSpeed = originalGlobeRotationSpeed;
+        isAIFeatureActive = false;
+      }
+    }
+
+    aiPromptInput.addEventListener('keypress', event => {
+      if (event.key === 'Enter' && isAIFeatureActive) {
+        const userPrompt = aiPromptInput.value.replace("AI Listening...", "").trim();
+        if (userPrompt) {
+          simulateAIResponse(userPrompt);
+        } else {
+          aiPromptInput.value = "Please enter a command.";
+          setTimeout(() => {
+            aiPromptInput.value = "AI Listening...";
+          }, 1500);
+        }
+      }
+    });
+
+    function generateNewsTickerContent(alerts) {
+      if (!alerts || !alerts.length) {
+        return "No major crisis events predicted for the next 7 days. | ";
+      }
+
+      const sortedAlerts = alerts.sort((a, b) => {
+        const severityA = Number(a.severity_level) || 0;
+        const severityB = Number(b.severity_level) || 0;
+        if (severityB !== severityA) return severityB - severityA;
+        const pplA = Number(a.people_in_need) || 0;
+        const pplB = Number(b.people_in_need) || 0;
+        if (pplB !== pplA) return pplB - pplA;
+        const dispA = Number(a.displaced_people) || 0;
+        const dispB = Number(b.displaced_people) || 0;
+        if (dispB !== dispA) return dispB - dispA;
+        const deathsA = Number(a.deaths) || 0;
+        const deathsB = Number(b.deaths) || 0;
+        if (deathsB !== deathsA) return deathsB - deathsA;
+        const timeA = a.start_time ? new Date(a.start_time).getTime() : 0;
+        const timeB = b.start_time ? new Date(b.start_time).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      const tickerMessages = sortedAlerts.slice(0, 10).map(alert => { // Limit to top 10 for performance
+        const impactDetails = [];
+        if (Number(alert.people_in_need)) impactDetails.push(`${Number(alert.people_in_need).toLocaleString()} in need`);
+        if (Number(alert.displaced_people)) impactDetails.push(`${Number(alert.displaced_people).toLocaleString()} displaced`);
+        if (Number(alert.deaths)) impactDetails.push(`${Number(alert.deaths).toLocaleString()} deaths`);
+        const impactString = impactDetails.length ? `(Impact: ${impactDetails.join(', ')})` : '';
+        const startTime = alert.start_time ? new Date(alert.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A';
+        const eventType = getStandardizedEventType(alert.event_type);
+        return `${eventType} in ${alert.location_name || 'Unknown'} (${alert.country || 'Unknown'}) - Severity: ${alert.severity_level ?? 'N/A'} - ${startTime} ${impactString}`;
+      });
+
+      return tickerMessages.join(' | ') || "No significant crisis events to report. | ";
+    }
+
+    async function fetchAndDisplayAPIData() {
+      try {
+        console.log(`Fetching data from: ${API_FORECAST_URL}`);
+        const response = await fetch(API_FORECAST_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        const data = await response.json();
+        console.log("API response:", data);
+
+        // Update News Ticker
+        const newsTickerContent = document.getElementById('newsTickerContent');
+        if (data.alerts_processed_for_prediction?.length) {
+          newsTickerContent.textContent = generateNewsTickerContent(data.alerts_processed_for_prediction);
+          newsTickerContent.style.animation = 'none';
+          void newsTickerContent.offsetWidth;
+          newsTickerContent.style.animation = 'scroll 180s linear infinite';
+        } else {
+          newsTickerContent.textContent = data.message || "No crisis events predicted for the next 7 days. | ";
+        }
+
+        // Update Metrics
+        const summary = data.prediction_summary_7_days || {};
+        document.getElementById('aiConfidence').textContent = `Prediction Confidence: ${summary.overall_crisis_probability ? (summary.overall_crisis_probability * 100).toFixed(0) + '%' : 'N/A'}`;
+        document.getElementById('predictedEvents').textContent = `Predicted Events: ${summary.predicted_incidents_count?.toLocaleString() || 'N/A'}`;
+        document.getElementById('overallSeverity').textContent = `Overall Severity: ${summary.overall_severity_level || 'N/A'}`;
+
+        let totalPeopleInNeed = 0, totalDisplacedPeople = 0, totalDeaths = 0, totalSeverity = 0, maxSeverity = 0, severityCount = 0;
+        if (data.alerts_processed_for_prediction?.length) {
+          data.alerts_processed_for_prediction.forEach(alert => {
+            totalPeopleInNeed += Number(alert.people_in_need) || 0;
+            totalDisplacedPeople += Number(alert.displaced_people) || 0;
+            totalDeaths += Number(alert.deaths) || 0;
+            if (Number(alert.severity_level)) {
+              totalSeverity += Number(alert.severity_level);
+              severityCount++;
+              maxSeverity = Math.max(maxSeverity, Number(alert.severity_level));
+            }
+          });
+        }
+
+        document.getElementById('totalPeopleInNeed').textContent = `Total People in Need: ${totalPeopleInNeed.toLocaleString() || 'N/A'}`;
+        document.getElementById('totalDisplacedPeople').textContent = `Total Displaced People: ${totalDisplacedPeople.toLocaleString() || 'N/A'}`;
+        document.getElementById('totalDeaths').textContent = `Total Deaths: ${totalDeaths.toLocaleString() || 'N/A'}`;
+        document.getElementById('highestSeverity').textContent = `Highest Severity: ${maxSeverity > 0 ? maxSeverity : 'N/A'}`;
+        document.getElementById('averageSeverity').textContent = `Average Severity: ${severityCount > 0 ? (totalSeverity / severityCount).toFixed(1) : 'N/A'}`;
+
+        // Update Globe Markers
+        addDisasterMarkers(data.alerts_processed_for_prediction || []);
+
+      } catch (error) {
+        console.error("Error fetching API data:", error);
+        document.getElementById('newsTickerContent').textContent = "Failed to load crisis data. Check API connection. | ";
+        ['aiConfidence', 'predictedEvents', 'overallSeverity', 'highestSeverity', 'averageSeverity', 'totalPeopleInNeed', 'totalDisplacedPeople', 'totalDeaths'].forEach(id => {
+          document.getElementById(id).textContent = `${id.replace(/([A-Z])/g, ' $1').trim()}: Error`;
+        });
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' }) + ' UTC';
+      setTimeout(updateClock, 1000);
+    }
+    updateClock();
+
+    document.addEventListener('DOMContentLoaded', fetchAndDisplayAPIData);
+    setInterval(fetchAndDisplayAPIData, API_UPDATE_INTERVAL_MS);
+  </script>
+</body>
+</html>
