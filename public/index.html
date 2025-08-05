@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ARGUS - Global Disaster Watch</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
@@ -274,7 +273,8 @@
   <div id="footer">Powered by World Disaster Center</div>
   <script>
     // --- API Configuration ---
-    const API_FORECAST_URL = "http://localhost:5000/fetch_s3_forecast"; // Updated to use Flask endpoint
+    // Use the public S3 URL directly for fetching data
+    const S3_PUBLIC_URL = "https://argus-deployments-sapiens2025.s3.us-east-2.amazonaws.com/global_7_day_forecast_data.json";
     const API_UPDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes for smoother updates
 
     // UNOCHA-inspired color mapping
@@ -662,11 +662,11 @@
 
     async function fetchAndDisplayAPIData() {
       try {
-        console.log(`Fetching data from: ${API_FORECAST_URL}`);
-        const response = await fetch(API_FORECAST_URL, { cache: 'no-store' });
+        console.log(`Fetching data from S3: ${S3_PUBLIC_URL}`);
+        const response = await fetch(S3_PUBLIC_URL, { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         const data = await response.json();
-        console.log("API response:", data);
+        console.log("S3 response:", data);
 
         // Update News Ticker
         const newsTickerContent = document.getElementById('newsTickerContent');
@@ -709,8 +709,8 @@
         addDisasterMarkers(data.alerts_processed_for_prediction || []);
 
       } catch (error) {
-        console.error("Error fetching API data:", error);
-        document.getElementById('newsTickerContent').textContent = "Failed to load crisis data. Check API connection. | ";
+        console.error("Error fetching S3 data:", error);
+        document.getElementById('newsTickerContent').textContent = "Failed to load crisis data. Check S3 connection or URL. | ";
         ['aiConfidence', 'predictedEvents', 'overallSeverity', 'highestSeverity', 'averageSeverity', 'totalPeopleInNeed', 'totalDisplacedPeople', 'totalDeaths'].forEach(id => {
           document.getElementById(id).textContent = `${id.replace(/([A-Z])/g, ' $1').trim()}: Error`;
         });
